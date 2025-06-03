@@ -32,8 +32,8 @@
 
     <!-- Botones principales -->
     <div class="button-container">
-      <!-- Si el usuario está autenticado, mostrar botón de jugar y cerrar sesión -->
-      <template v-if="isAuthenticated">
+      <!-- Si el usuario está autenticado y email verificado -->
+      <template v-if="isAuthenticated && isEmailVerified">
         <button
           class="btn-estilos btn-primary"
           @click="irAJuegos"
@@ -48,7 +48,30 @@
         </button>
       </template>
       
-      <!-- Si el usuario NO está autenticado, mostrar botones de login y registro -->
+      <!-- Si el usuario está autenticado pero email NO verificado -->
+      <template v-else-if="isAuthenticated && !isEmailVerified">
+        <div class="email-verification-notice">
+          <div class="notice-content">
+            <i class="fas fa-envelope-open-text"></i>
+            <h3>¡Verifica tu email!</h3>
+            <p>Para acceder a los juegos, necesitas verificar tu dirección de email.</p>
+            <button
+              @click="goToEmailVerification"
+              class="btn-estilos btn-verify"
+            >
+              ✉️ Verificar Email
+            </button>
+          </div>
+        </div>
+        <button
+          @click="handleLogout"
+          class="btn-estilos btn-logout"
+        >
+          🚪 Cerrar sesión
+        </button>
+      </template>
+      
+      <!-- Si el usuario NO está autenticado -->
       <template v-else>
         <button
           @click="handleLogin"
@@ -70,18 +93,29 @@
 <script setup>
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 
 const router = useRouter()
-const { isAuthenticated, loginWithRedirect, logout } = useAuth0()
+const { isAuthenticated, loginWithRedirect, logout, user } = useAuth0()
+
+// Computed para verificar si el email está verificado
+const isEmailVerified = computed(() => {
+  return user.value?.email_verified || false
+})
 
 function irAJuegos() {
+  // Esta función ahora es segura porque solo se muestra cuando el email está verificado
   router.push('/juegos')
+}
+
+function goToEmailVerification() {
+  router.push('/register-prompt')
 }
 
 function handleLogin() {
   loginWithRedirect({ 
     authorizationParams: { 
-      redirect_uri: window.location.origin + '/juegos' 
+      redirect_uri: 'http://localhost:3000/juegos'
     } 
   })
 }
@@ -90,7 +124,7 @@ function handleSignup() {
   loginWithRedirect({ 
     authorizationParams: { 
       screen_hint: 'signup',
-      redirect_uri: window.location.origin + '/juegos' 
+      redirect_uri: 'http://localhost:3000/juegos'
     } 
   })
 }
@@ -148,13 +182,13 @@ async function handleLogout() {
     // Realizar logout
     await logout({ 
       logoutParams: {
-        returnTo: window.location.origin 
+        returnTo: 'http://localhost:3000'
       }
     });
 
   } catch (error) {
     console.error('Error durante el logout:', error);
-    
+    window.location.href = 'http://localhost:3000';
     // Remover loading si existe
     const loading = document.querySelector('div[style*="position: fixed"]');
     if (loading) {
@@ -231,6 +265,53 @@ defineProps()
   flex-wrap: wrap;
   width: 100%;
   max-width: 600px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.email-verification-notice {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(10px);
+  max-width: 400px;
+  width: 100%;
+}
+
+.notice-content {
+  text-align: center;
+}
+
+.notice-content i {
+  font-size: 2.5rem;
+  color: #60a5fa;
+  margin-bottom: 1rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.notice-content h3 {
+  color: #dbeafe;
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.notice-content p {
+  color: #bfdbfe;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .btn-estilos {
@@ -247,9 +328,12 @@ defineProps()
   position: relative;
   overflow: hidden;
   min-width: 160px;
-  flex: 1 1 200px;
   max-width: 280px;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .btn-estilos::before {
@@ -305,6 +389,17 @@ defineProps()
 
 .btn-signup:hover {
   background: linear-gradient(135deg, #047857, #065f46);
+}
+
+/* Botón de verificación */
+.btn-verify {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  margin-top: 0.5rem;
+}
+
+.btn-verify:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
 /* Botón de Logout */
@@ -376,10 +471,13 @@ defineProps()
   }
   
   .button-container {
-    flex-direction: column;
-    align-items: center;
     gap: 1rem;
     margin-top: 1.5rem;
+  }
+  
+  .email-verification-notice {
+    max-width: 100%;
+    margin-bottom: 1rem;
   }
   
   .btn-estilos {
@@ -387,7 +485,6 @@ defineProps()
     max-width: 300px;
     min-width: auto;
     padding: 12px 24px;
-    flex: none;
   }
 }
 
@@ -421,6 +518,18 @@ defineProps()
     padding: 8px 0;
   }
   
+  .email-verification-notice {
+    padding: 15px;
+  }
+  
+  .notice-content h3 {
+    font-size: 1.2rem;
+  }
+  
+  .notice-content p {
+    font-size: 0.9rem;
+  }
+  
   .btn-estilos {
     font-size: 1rem;
     padding: 10px 20px;
@@ -441,8 +550,21 @@ defineProps()
     padding: 10px;
   }
   
+  .email-verification-notice {
+    padding: 12px;
+  }
+  
+  .notice-content h3 {
+    font-size: 1.1rem;
+  }
+  
+  .notice-content p {
+    font-size: 0.8rem;
+  }
+  
   .btn-estilos {
     font-size: 0.9rem;
     padding: 8px 16px;
   }
-}</style>
+}
+</style>

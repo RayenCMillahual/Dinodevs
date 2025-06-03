@@ -1,27 +1,25 @@
+// backend/src/app.module.ts
 import { Module } from '@nestjs/common';
-import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { HttpModule } from '@nestjs/axios';
-import { ProtectedController } from './protected/protected.controller';
-// import { DinosaursModule } from './dinosaurs/dinosaurs.module';
-// import { RankingsModule } from './rankings/rankings.module';
-// import { JuegosModule } from './juegos/juegos.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { JuegosModule } from './juegos/juegos.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    HttpModule,
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 1 minuto
+      limit: 10, // 10 requests por minuto
+    }]),
     PrismaModule,
     AuthModule,
-    UsersModule,
-    // DinosaursModule,
-    // RankingsModule,
-    // JuegosModule,
+    JuegosModule,
   ],
-  controllers: [ProtectedController],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
