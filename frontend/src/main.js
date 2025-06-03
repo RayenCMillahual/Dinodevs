@@ -1,4 +1,4 @@
-// frontend/src/main.js
+// frontend/src/main.js - CORREGIDO
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
@@ -10,7 +10,7 @@ const app = createApp(App);
 
 app.use(createPinia());
 
-// Configuración de Auth0 con variables de entorno
+// Configuración de Auth0 CORREGIDA
 const authDomain = import.meta.env.VITE_AUTH0_DOMAIN;
 const authClientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
 const authAudience = import.meta.env.VITE_AUTH0_AUDIENCE;
@@ -31,8 +31,8 @@ app.use(
     domain: authDomain,
     clientId: authClientId,
     authorizationParams: {
-      redirect_uri: 'http://localhost:3000',
-      audience: authAudience,
+      redirect_uri: `${window.location.origin}/callback`, // CORRECCIÓN: usar callback
+      audience: authAudience, // Tu API personalizada
       scope: 'openid profile email'
     },
     cacheLocation: 'localstorage',

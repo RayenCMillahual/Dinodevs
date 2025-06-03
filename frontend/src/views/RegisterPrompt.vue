@@ -6,12 +6,12 @@
         <h2>¡Debes iniciar sesión para jugar!</h2>
         <p>Regístrate o inicia sesión para acceder a la sección de juegos</p>
         <div class="button-container">
-<button @click="loginWithRedirect({ authorizationParams: { redirect_uri: 'http://localhost:3000/juegos' } })" class="btn-estilos">
-  Iniciar Sesión
-</button>
-<button @click="loginWithRedirect({ authorizationParams: { screen_hint: 'signup', redirect_uri: 'http://localhost:3000/juegos' } })" class="btn-estilos bg-green-600 text-white py-2 px-4 rounded-lg shadow-md hover:bg-green-700">
-  Registrarse
-</button>
+          <button @click="handleLogin" class="btn-estilos">
+            Iniciar Sesión
+          </button>
+          <button @click="handleSignup" class="btn-estilos bg-green-600 text-white py-2 px-4 rounded-lg shadow-md hover:bg-green-700">
+            Registrarse
+          </button>
         </div>
       </template>
 
@@ -42,10 +42,41 @@
             </div>
           </div>
 
-          <!-- Mensaje de éxito/error -->
+          <!-- Mensaje de éxito/error MEJORADO -->
           <div v-if="message" class="message" :class="messageType">
             <i :class="messageType === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle'"></i>
             {{ message }}
+            <!-- Mostrar detalles técnicos si es éxito -->
+            <div v-if="messageType === 'success' && emailSentDetails" class="email-details">
+              <small>
+                <strong>✅ Email enviado exitosamente</strong><br>
+                📧 Destinatario: {{ userEmail }}<br>
+                🕒 Enviado: {{ new Date().toLocaleTimeString() }}<br>
+                <span v-if="emailSentDetails.ticket_url">
+                  🎫 Ticket ID: {{ emailSentDetails.ticket_url.split('/').pop() }}
+                </span>
+              </small>
+            </div>
+          </div>
+
+          <!-- DEBUG INFO (solo en desarrollo) -->
+          <div v-if="showDebugInfo" class="debug-info">
+            <h4>🔧 Debug Info:</h4>
+            <div class="debug-item">
+              <strong>API URL:</strong> {{ apiUrl }}
+            </div>
+            <div class="debug-item">
+              <strong>User ID:</strong> {{ user?.sub }}
+            </div>
+            <div class="debug-item">
+              <strong>Email:</strong> {{ userEmail }}
+            </div>
+            <div class="debug-item">
+              <strong>Email Verified:</strong> {{ isEmailVerified }}
+            </div>
+            <div class="debug-item">
+              <strong>Last Request:</strong> {{ lastRequestDetails }}
+            </div>
           </div>
 
           <div class="button-container">
@@ -57,6 +88,19 @@
               <i class="fas fa-sync-alt" :class="{ 'fa-spin': isChecking }"></i>
               {{ isChecking ? 'Verificando...' : 'Ya verifiqué mi email' }}
             </button>
+            
+            <!-- Botón de debug -->
+            <button @click="toggleDebugInfo" class="btn-estilos btn-debug" style="background: #6b7280;">
+              <i class="fas fa-bug"></i>
+              {{ showDebugInfo ? 'Ocultar Debug' : 'Mostrar Debug' }}
+            </button>
+            
+            <!-- Botón para probar conexión -->
+            <button @click="testBackendConnection" class="btn-estilos btn-test" style="background: #8b5cf6;">
+              <i class="fas fa-wifi"></i>
+              Probar Conexión
+            </button>
+            
             <button @click="handleLogout" class="btn-estilos btn-logout">
               <i class="fas fa-sign-out-alt"></i>
               Cerrar sesión
@@ -65,6 +109,7 @@
 
           <div class="help-text">
             <p><small>¿No recibes el email? Revisa tu carpeta de spam o correo no deseado.</small></p>
+            <p><small>💡 Tip: Algunos proveedores de email pueden demorar hasta 5 minutos.</small></p>
           </div>
         </div>
       </template>
@@ -104,6 +149,56 @@ const {
 const isLoading = ref(true);
 const message = ref('');
 const messageType = ref('');
+const emailSentDetails = ref(null);
+const showDebugInfo = ref(false);
+const lastRequestDetails = ref('');
+
+// URL de la API
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
+// FUNCIONES CORREGIDAS PARA LOGIN/SIGNUP
+function handleLogin() {
+  loginWithRedirect({ 
+    authorizationParams: { 
+      redirect_uri: `${window.location.origin}/callback`
+    } 
+  });
+}
+
+function handleSignup() {
+  loginWithRedirect({ 
+    authorizationParams: { 
+      screen_hint: 'signup',
+      redirect_uri: `${window.location.origin}/callback`
+    } 
+  });
+}
+
+// Toggle debug info
+function toggleDebugInfo() {
+  showDebugInfo.value = !showDebugInfo.value;
+}
+
+// Probar conexión con el backend
+async function testBackendConnection() {
+  try {
+    showMessage('Probando conexión...', 'info');
+    
+    const response = await fetch(`${apiUrl}/api/auth/test-connection`);
+    const data = await response.json();
+    
+    if (data.success) {
+      showMessage('✅ Conexión exitosa con el backend', 'success');
+      lastRequestDetails.value = `Test OK - ${new Date().toLocaleTimeString()}`;
+    } else {
+      showMessage(`❌ Error en la conexión: ${data.message}`, 'error');
+      lastRequestDetails.value = `Test FAIL - ${data.message}`;
+    }
+  } catch (error) {
+    showMessage(`❌ No se pudo conectar al backend: ${error.message}`, 'error');
+    lastRequestDetails.value = `Connection ERROR - ${error.message}`;
+  }
+}
 
 // Verificar el estado del usuario al montar el componente
 onMounted(async () => {
@@ -118,18 +213,29 @@ onMounted(async () => {
   }, 1000);
 });
 
-// Función para reenviar email de verificación
+// Función para reenviar email de verificación MEJORADA
 async function handleResendEmail() {
   try {
     clearMessage();
+    lastRequestDetails.value = `Resend attempt - ${new Date().toLocaleTimeString()}`;
+    
     const result = await resendVerificationEmail();
     
     if (result.success) {
-      showMessage(result.message, 'success');
+      emailSentDetails.value = result;
+      showMessage(
+        `✅ ${result.message}`, 
+        'success'
+      );
+      lastRequestDetails.value = `Resend SUCCESS - ${new Date().toLocaleTimeString()}`;
     }
   } catch (error) {
     console.error('Error reenviando email:', error);
-    showMessage(error.message || 'Hubo un error al reenviar el email. Inténtalo más tarde.', 'error');
+    lastRequestDetails.value = `Resend ERROR - ${error.message}`;
+    showMessage(
+      `❌ ${error.message || 'Hubo un error al reenviar el email. Inténtalo más tarde.'}`, 
+      'error'
+    );
   }
 }
 
@@ -137,33 +243,38 @@ async function handleResendEmail() {
 async function handleCheckVerification() {
   try {
     clearMessage();
+    lastRequestDetails.value = `Check attempt - ${new Date().toLocaleTimeString()}`;
+    
     const isVerified = await checkEmailVerificationStatus();
     
     if (isVerified) {
-      showMessage('¡Email verificado correctamente! Redirigiendo...', 'success');
+      showMessage('🎉 ¡Email verificado correctamente! Redirigiendo...', 'success');
+      lastRequestDetails.value = `Check SUCCESS - Verified!`;
       setTimeout(() => {
         router.push('/juegos');
       }, 2000);
     } else {
-      showMessage('El email aún no está verificado. Revisa tu bandeja de entrada.', 'error');
+      showMessage('⏳ El email aún no está verificado. Revisa tu bandeja de entrada.', 'info');
+      lastRequestDetails.value = `Check - Still not verified`;
     }
   } catch (error) {
     console.error('Error verificando email:', error);
-    showMessage('Hubo un error al verificar tu email. Inténtalo más tarde.', 'error');
+    lastRequestDetails.value = `Check ERROR - ${error.message}`;
+    showMessage('❌ Hubo un error al verificar tu email. Inténtalo más tarde.', 'error');
   }
 }
 
-// Función para cerrar sesión
+// Función para cerrar sesión CORREGIDA
 async function handleLogout() {
   try {
     await logout({ 
       logoutParams: {
-        returnTo: 'http://localhost:3000'
+        returnTo: window.location.origin
       }
     });
   } catch (error) {
     console.error('Error durante logout:', error);
-    window.location.href = 'http://localhost:3000';
+    window.location.href = window.location.origin;
   }
 }
 
@@ -172,17 +283,18 @@ function showMessage(text, type) {
   message.value = text;
   messageType.value = type;
   
-  // Limpiar el mensaje después de 5 segundos si es de éxito
-  if (type === 'success') {
+  // Limpiar el mensaje después de 8 segundos si es de éxito
+  if (type === 'success' || type === 'info') {
     setTimeout(() => {
       clearMessage();
-    }, 5000);
+    }, 8000);
   }
 }
 
 function clearMessage() {
   message.value = '';
   messageType.value = '';
+  emailSentDetails.value = null;
 }
 </script>
 
@@ -203,7 +315,7 @@ function clearMessage() {
   background: rgba(0, 0, 0, 0.5);
   border-radius: 10px;
   color: #fff;
-  max-width: 500px;
+  max-width: 600px;
   width: 100%;
   backdrop-filter: blur(5px);
 }
@@ -273,6 +385,7 @@ function clearMessage() {
   border-radius: 8px;
   margin: 1rem 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
   font-weight: 500;
@@ -288,6 +401,47 @@ function clearMessage() {
   background-color: rgba(239, 68, 68, 0.2);
   border: 1px solid #ef4444;
   color: #fca5a5;
+}
+
+.message.info {
+  background-color: rgba(59, 130, 246, 0.2);
+  border: 1px solid #3b82f6;
+  color: #93c5fd;
+}
+
+.email-details {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 8px;
+  text-align: left;
+  font-family: monospace;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.debug-info {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 15px;
+  border-radius: 8px;
+  margin: 1rem 0;
+  text-align: left;
+  font-family: monospace;
+  font-size: 0.9rem;
+  border: 1px solid #6b7280;
+}
+
+.debug-info h4 {
+  color: #fbbf24;
+  margin-bottom: 10px;
+}
+
+.debug-item {
+  margin: 5px 0;
+  color: #d1d5db;
+}
+
+.debug-item strong {
+  color: #60a5fa;
 }
 
 .button-container {

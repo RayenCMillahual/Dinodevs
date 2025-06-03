@@ -112,10 +112,11 @@ function goToEmailVerification() {
   router.push('/register-prompt')
 }
 
+// FUNCIONES CORREGIDAS
 function handleLogin() {
   loginWithRedirect({ 
     authorizationParams: { 
-      redirect_uri: 'http://localhost:3000/juegos'
+      redirect_uri: `${window.location.origin}/callback` // CORRECCIÓN
     } 
   })
 }
@@ -124,12 +125,12 @@ function handleSignup() {
   loginWithRedirect({ 
     authorizationParams: { 
       screen_hint: 'signup',
-      redirect_uri: 'http://localhost:3000/juegos'
+      redirect_uri: `${window.location.origin}/callback` // CORRECCIÓN
     } 
   })
 }
 
-// DinoHome.vue - Función handleLogout mejorada
+// Función handleLogout corregida
 async function handleLogout() {
   try {
     // Mostrar indicador de carga (opcional)
@@ -179,24 +180,24 @@ async function handleLogout() {
     // Esperar un momento para mostrar el loading
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Realizar logout
+    // Realizar logout con URL corregida
     await logout({ 
       logoutParams: {
-        returnTo: 'http://localhost:3000'
+        returnTo: window.location.origin // CORRECCIÓN
       }
     });
 
   } catch (error) {
     console.error('Error durante el logout:', error);
-    window.location.href = 'http://localhost:3000';
+    
     // Remover loading si existe
     const loading = document.querySelector('div[style*="position: fixed"]');
-    if (loading) {
-      document.body.removeChild(loading);
+    if (loading && loading.parentNode) {
+      loading.parentNode.removeChild(loading);
     }
     
     // Fallback: redirigir manualmente
-    window.location.href = '/';
+    window.location.href = window.location.origin; // CORRECCIÓN
   }
 }
 

@@ -1,4 +1,4 @@
-// frontend/src/router/index.js
+// frontend/src/router/index.js - VERSIÓN CORREGIDA
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuth0 } from '@auth0/auth0-vue';
 import DinoHome from '@/views/DinoHome.vue';
@@ -51,7 +51,8 @@ async function requiresEmailVerification(to, from, next) {
       await loginWithRedirect({ 
         appState: { target: to.fullPath },
         authorizationParams: {
-          redirect_uri: 'http://localhost:3000' + to.fullPath
+          // CORRECCIÓN: usar window.location.origin en lugar de hardcodear
+          redirect_uri: `${window.location.origin}/callback`
         }
       });
       return;
@@ -83,7 +84,8 @@ async function requiresAuth(to, from, next) {
     await loginWithRedirect({ 
       appState: { target: to.fullPath },
       authorizationParams: {
-        redirect_uri: 'http://localhost:3000' + to.fullPath
+        // CORRECCIÓN: usar window.location.origin
+        redirect_uri: `${window.location.origin}/callback`
       }
     });
     return;
@@ -97,6 +99,13 @@ const routes = [
     path: '/', 
     component: DinoHome,
     name: 'home'
+  },
+  
+  // NUEVA RUTA: Callback de Auth0
+  {
+    path: '/callback',
+    component: () => import('@/views/CallbackPage.vue'),
+    name: 'callback'
   },
   
   {
@@ -136,7 +145,7 @@ const routes = [
     path: '/register-prompt', 
     component: RegisterPrompt,
     name: 'register-prompt',
-    beforeEnter: requiresAuth, // Solo requiere autenticación, no email verificado
+    beforeEnter: requiresAuth,
     meta: {
       requiresAuth: true,
       title: 'Verificar Email - DinosDevs'
